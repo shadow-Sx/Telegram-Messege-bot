@@ -1,12 +1,31 @@
-import threading
-from aiohttp import web
+import logging
+import os
+from aiogram import Bot, Dispatcher, executor, types
 
-async def handle(request):
-    return web.Response(text="Bot ishlayapti")
+# Logging
+logging.basicConfig(level=logging.INFO)
 
-def run_web():
-    app = web.Application()
-    app.router.add_get('/', handle)
-    web.run_app(app, port=8080)
+# Tokenni Railway Variables dan olamiz
+BOT_TOKEN = os.getenv("BOT_TOKEN")
 
-threading.Thread(target=run_web).start()
+if not BOT_TOKEN:
+    raise ValueError("BOT_TOKEN topilmadi! Railway Variables ga qo‘shing.")
+
+bot = Bot(token=BOT_TOKEN)
+dp = Dispatcher(bot)
+
+
+# /start komandasi
+@dp.message_handler(commands=['start'])
+async def start_handler(message: types.Message):
+    await message.answer("Salom! Bot ishlayapti 🚀")
+
+
+# Oddiy echo
+@dp.message_handler()
+async def echo_handler(message: types.Message):
+    await message.answer(f"Siz yozdingiz: {message.text}")
+
+
+if __name__ == "__main__":
+    executor.start_polling(dp, skip_updates=True)
