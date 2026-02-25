@@ -1,12 +1,12 @@
-import os
-import asyncio
-from aiogram import Bot, Dispatcher
-from aiogram.enums import ParseMode
+import threading
+from aiohttp import web
 
-TOKEN = os.getenv("BOT_TOKEN")
+async def handle(request):
+    return web.Response(text="Bot ishlayapti")
 
-if not TOKEN:
-    raise ValueError("BOT_TOKEN topilmadi! Render Environment Variables ni tekshiring.")
+def run_web():
+    app = web.Application()
+    app.router.add_get('/', handle)
+    web.run_app(app, port=8080)
 
-bot = Bot(token=TOKEN, parse_mode=ParseMode.HTML)
-dp = Dispatcher()
+threading.Thread(target=run_web).start()
