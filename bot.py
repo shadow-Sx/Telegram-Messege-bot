@@ -1,31 +1,43 @@
-import logging
+import telebot
 import os
-from aiogram import Bot, Dispatcher, executor, types
 
-# Logging
-logging.basicConfig(level=logging.INFO)
+TOKEN = os.getenv("BOT_TOKEN")
+bot = telebot.TeleBot(TOKEN)
 
-# Tokenni Railway Variables dan olamiz
-BOT_TOKEN = os.getenv("BOT_TOKEN")
+user_data = {}
 
-if not BOT_TOKEN:
-    raise ValueError("BOT_TOKEN topilmadi! Railway Variables ga qo‘shing.")
+@bot.message_handler(commands=['start'])
+def start(message):
+    bot.reply_to(message, "Salom! Nomini yuboring (masalan: Naruto)")
+    user_data[message.chat.id] = {}
 
-bot = Bot(token=BOT_TOKEN)
-dp = Dispatcher(bot)
+@bot.message_handler(func=lambda m: m.chat.id in user_data and "name" not in user_data[m.chat.id])
+def get_name(message):
+    user_data[message.chat.id]["name"] = message.text
+    bot.reply_to(message, "Nechta qism yuboray? (masalan: 100)")
+    
+@bot.message_handler(func=lambda m: m.chat.id in user_data and "count" not in user_data[m.chat.id])
+def get_count(message):
+    if not message.text.isdigit():
+        return bot.reply_to(message, "Faqat raqam kiriting!")
+    user_data[message.chat.id]["count"] = int(message.text)
+    bot.reply_to(message, "Kanal nomini yuboring (masalan: @AniManxwa)")
 
+@bot.message_handler(func=lambda m: m.chat.id in user_data and "channel" not in user_data[m.chat.id])
+def get_channel(message):
+    user_data[message.chat.id]["channel"] = message.text
+    bot.reply_to(message, "Yuborishni boshladim...")
 
-# /start komandasi
-@dp.message_handler(commands=['start'])
-async def start_handler(message: types.Message):
-    await message.answer("Salom! Bot ishlayapti 🚀")
+    name = user_data[message.chat.id]["name"]
+    count = user_data[message.chat.id]["count"]
+    channel = user_data[message.chat.id]["channel"]
 
+    for i in range(1, count + 1):
+        text = f"<b>{name} [<i>{i}-qism</i>] {channel}</b>"
+        bot.send_message(message.chat.id, text, parse_mode="HTML")
 
-# Oddiy echo
-@dp.message_handler()
-async def echo_handler(message: types.Message):
-    await message.answer(f"Siz yozdingiz: {message.text}")
+    bot.send_message(message.chat.id, "Tayyor!")
+    del user_data[message.chat.id]
 
+bot.polling()
 
-if __name__ == "__main__":
-    executor.start_polling(dp, skip_updates=True)
