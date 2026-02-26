@@ -1,32 +1,42 @@
-import telebot
 import os
+from aiogram import Bot, Dispatcher, executor, types
 
 TOKEN = os.getenv("BOT_TOKEN")
-bot = telebot.TeleBot(TOKEN)
+bot = Bot(token=TOKEN, parse_mode="HTML")
+dp = Dispatcher(bot)
 
 user_data = {}
 
-@bot.message_handler(commands=['start'])
-def start(message):
-    bot.reply_to(message, "Salom! Nomini yuboring (masalan: Naruto)")
+# /start buyrug'i
+@dp.message_handler(commands=['start'])
+async def start(message: types.Message):
+    await message.answer("Bot faol ishlamoqda")
+
+# /yaratish buyrug'i
+@dp.message_handler(commands=['yaratish'])
+async def yaratish(message: types.Message):
     user_data[message.chat.id] = {}
+    await message.answer("Nomini yuboring (masalan: Naruto)")
 
-@bot.message_handler(func=lambda m: m.chat.id in user_data and "name" not in user_data[m.chat.id])
-def get_name(message):
+# 1-qadam: nom
+@dp.message_handler(lambda m: m.chat.id in user_data and "name" not in user_data[m.chat.id])
+async def get_name(message: types.Message):
     user_data[message.chat.id]["name"] = message.text
-    bot.reply_to(message, "Nechta qism yuboray? (masalan: 100)")
-    
-@bot.message_handler(func=lambda m: m.chat.id in user_data and "count" not in user_data[m.chat.id])
-def get_count(message):
-    if not message.text.isdigit():
-        return bot.reply_to(message, "Faqat raqam kiriting!")
-    user_data[message.chat.id]["count"] = int(message.text)
-    bot.reply_to(message, "Kanal nomini yuboring (masalan: @AniManxwa)")
+    await message.answer("Nechta qism yuboray? (masalan: 100)")
 
-@bot.message_handler(func=lambda m: m.chat.id in user_data and "channel" not in user_data[m.chat.id])
-def get_channel(message):
+# 2-qadam: miqdor
+@dp.message_handler(lambda m: m.chat.id in user_data and "count" not in user_data[m.chat.id])
+async def get_count(message: types.Message):
+    if not message.text.isdigit():
+        return await message.answer("Faqat raqam kiriting!")
+    user_data[message.chat.id]["count"] = int(message.text)
+    await message.answer("Kanal nomini yuboring (masalan: @AniManxwa)")
+
+# 3-qadam: kanal
+@dp.message_handler(lambda m: m.chat.id in user_data and "channel" not in user_data[m.chat.id])
+async def get_channel(message: types.Message):
     user_data[message.chat.id]["channel"] = message.text
-    bot.reply_to(message, "Yuborishni boshladim...")
+    await message.answer("Yuborishni boshladim...")
 
     name = user_data[message.chat.id]["name"]
     count = user_data[message.chat.id]["count"]
@@ -34,10 +44,15 @@ def get_channel(message):
 
     for i in range(1, count + 1):
         text = f"<b>{name} [<i>{i}-qism</i>] {channel}</b>"
-        bot.send_message(message.chat.id, text, parse_mode="HTML")
+        await message.answer(text)
 
-    bot.send_message(message.chat.id, "Tayyor!")
+    await message.answer("Tayyor!")
     del user_data[message.chat.id]
 
-bot.polling()
+# Oddiy xabarlarga javob bermaslik
+@dp.message_handler()
+async def ignore(message: types.Message):
+    pass
 
+if __name__ == "__main__":
+    executor.start_polling(dp)
