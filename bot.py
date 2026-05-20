@@ -14,52 +14,77 @@ bot = telebot.TeleBot(BOT_TOKEN)
 app = Flask(__name__)
 
 # Foydalanuvchi ma'lumotlarini saqlash
-user_states = {}  # Holat: textcopy, combo_format, combo_files
-user_combo_data = {}  # /combo uchun: format va fayllar ro'yxati
+user_states = {}
+user_combo_data = {}
 
 
 def process_textcopy_message(text):
-    """Matnni qayta ishlash - /textcopy uchun"""
+    """
+    /textcopy uchun matnni qayta ishlash
+    HTML kodlarni qo'llab-quvvatlaydi
+    """
     results = []
     
     raqam_pattern = r'\{(\d+)\s*-\s*raqam\s*-\s*(\d+)\}'
     text_pattern = r'\{(\d+)\s*-\s*text\s*-\s*(\d+)\}'
     textenter_pattern = r'\{(\d+)\s*-\s*textenter\s*-\s*(\d+)\}'
     
+    # {0 - raqam - 1} - alohida xabarlar (HTML parse qilinadi)
     for match in re.finditer(raqam_pattern, text):
         start = int(match.group(1))
         count = int(match.group(2))
         template = text.replace(match.group(0), '{}').strip()
         for i in range(start, start + count):
-            results.append(("individual", template.format(i)))
+            msg = template.format(i)
+            results.append(("individual", msg, 'HTML'))
     
+    # {0 - text - 1} - bitta xabarda (HTML parse qilinadi)
     for match in re.finditer(text_pattern, text):
         start = int(match.group(1))
         count = int(match.group(2))
         template = text.replace(match.group(0), '{}').strip()
         parts = [template.format(i) for i in range(start, start + count)]
-        results.append(("combined", ", ".join(parts)))
+        results.append(("combined", ", ".join(parts), 'HTML'))
     
+    # {0 - textenter - 1} - yangi qatordan (HTML parse qilinadi)
     for match in re.finditer(textenter_pattern, text):
         start = int(match.group(1))
         count = int(match.group(2))
         template = text.replace(match.group(0), '{}').strip()
         lines = [template.format(i) for i in range(start, start + count)]
-        results.append(("combined", "\n".join(lines)))
+        results.append(("combined", "\n".join(lines), 'HTML'))
     
     return results
 
 
 def process_combo_format(text):
-    """Combo format matnni qayta ishlash"""
-    raqam_pattern = r'\{(\d+)\s*-\s*raqam\s*-\s*(\d+)\}'
-    text_raqam_pattern = r'\{(\d+)\s*-\s*text\s*raqam\s*-\s*(\d+)\}'
+    """
+    /combo format matnni qayta ishlash
+    """
+    raqam_pattern = r'\{(\d+)\s*-\s*raqam\}'
+    text_raqam_pattern = r'\{(\d+)\s*-\s*text\s*raqam\}'
     
-    # Formatlarni tekshirish
     has_raqam = bool(re.search(raqam_pattern, text))
     has_text_raqam = bool(re.search(text_raqam_pattern, text))
     
     return has_raqam or has_text_raqam
+
+
+def get_combo_format_type(text):
+    """
+    Combo format turini aniqlash
+    """
+    raqam_pattern = r'\{(\d+)\s*-\s*raqam\}'
+    text_raqam_pattern = r'\{(\d+)\s*-\s*text\s*raqam\}'
+    
+    if re.search(raqam_pattern, text):
+        match = re.search(raqam_pattern, text)
+        return 'raqam', int(match.group(1)), match.group(0)
+    elif re.search(text_raqam_pattern, text):
+        match = re.search(text_raqam_pattern, text)
+        return 'text_raqam', int(match.group(1)), match.group(0)
+    
+    return None, 0, ""
 
 
 @bot.message_handler(commands=['start'])
@@ -83,18 +108,12 @@ def cmd_textcopy(message):
     help_text = (
         "📝 <b>TextCopy buyrug'i uchun formatlar:</b>\n\n"
         "1️⃣ <code>{0 - raqam - 1}</code> - Alohida xabarlarda raqamlash\n"
-        "   Masalan: <code>Raqamlash nomlari {137 - raqam - 50}-Raqami</code>\n"
-        "   137 dan 187 gacha 50 ta alohida xabar yuboradi\n\n"
+        "   Masalan: <code>&lt;b&gt;Darslik {1 - raqam - 15}&lt;/b&gt;</code>\n"
+        "   <i>HTML kodlar ishlaydi!</i>\n\n"
         "2️⃣ <code>{0 - text - 1}</code> - Bitta xabarda yonma-yon\n"
-        "   Masalan: <code>Salom {1 - text - 20}</code>\n"
-        "   Natija: Salom 1, Salom 2, ..., Salom 20\n\n"
+        "   Masalan: <code>&lt;i&gt;Salom {1 - text - 20}&lt;/i&gt;</code>\n\n"
         "3️⃣ <code>{0 - textenter - 1}</code> - Yangi qatordan\n"
-        "   Masalan: <code>salom {1 - textenter - 4}</code>\n"
-        "   Natija:\n"
-        "   salom 1\n"
-        "   salom 2\n"
-        "   salom 3\n"
-        "   salom 4\n\n"
+        "   Masalan: <code>&lt;b&gt;salom {1 - textenter - 4}&lt;/b&gt;</code>\n\n"
         "✍️ <b>Endi kerakli formatda matn yuboring!</b>"
     )
     bot.reply_to(message, help_text, parse_mode='HTML')
@@ -108,14 +127,17 @@ def cmd_combo(message):
     help_text = (
         "🔄 <b>Combo buyrug'i - Fayllarni nomlash</b>\n\n"
         "Bu buyruq orqali siz yuborgan video/rasm/fayllarni avtomatik nomlab beraman.\n\n"
-        "📝 <b>Ishlash tartibi:</b>\n"
-        "1️⃣ Avval formatni yuboring:\n"
-        "   Masalan: <code>Mening videom {1 - raqam - 5}</code>\n"
-        "   Yoki: <code>Video {1 - text raqam - 5}</code>\n\n"
-        "2️⃣ Keyin video/rasm/fayllarni yuboring\n"
-        "   (xohlagancha fayl yuborishingiz mumkin)\n\n"
-        "3️⃣ /stop buyrug'i bilan yakunlang\n"
-        "   Men sizga barcha fayllarni nomlab beraman\n\n"
+        "📝 <b>2 xil format mavjud:</b>\n\n"
+        "1️⃣ <code>{1 - raqam}</code> - <b>HTML kodlar ishlaydi</b>\n"
+        "   Masalan: <code>&lt;b&gt;Video {1 - raqam}&lt;/b&gt;</code>\n"
+        "   Natija: <b>Video 1</b>, <b>Video 2</b>, ...\n\n"
+        "2️⃣ <code>{1 - text raqam}</code> - <b>Oddiy text</b>\n"
+        "   Masalan: <code>&lt;i&gt;Video {1 - text raqam}&lt;/i&gt;</code>\n"
+        "   Natija: &lt;i&gt;Video 1&lt;/i&gt; (oddiy text)\n\n"
+        "📎 <b>Ishlash tartibi:</b>\n"
+        "1️⃣ Formatni yuboring\n"
+        "2️⃣ Video/rasm/fayllarni yuboring\n"
+        "3️⃣ /stop buyrug'i bilan yakunlang\n\n"
         "✍️ <b>Avval formatni yuboring:</b>"
     )
     bot.reply_to(message, help_text, parse_mode='HTML')
@@ -135,59 +157,47 @@ def cmd_stop(message):
             bot.reply_to(message, "❌ Hech qanday fayl yubormadingiz!")
             return
         
-        raqam_pattern = r'\{(\d+)\s*-\s*raqam\s*-\s*(\d+)\}'
-        text_raqam_pattern = r'\{(\d+)\s*-\s*text\s*raqam\s*-\s*(\d+)\}'
+        format_type, start_num, pattern_text = get_combo_format_type(format_text)
         
-        raqam_match = re.search(raqam_pattern, format_text)
-        text_raqam_match = re.search(text_raqam_pattern, format_text)
+        bot.reply_to(
+            message, 
+            f"✅ <b>{len(files)} ta fayl qabul qilindi. Nomlash boshlandi...</b>", 
+            parse_mode='HTML'
+        )
         
-        bot.reply_to(message, f"✅ <b>{len(files)} ta fayl qabul qilindi. Nomlash boshlandi...</b>", parse_mode='HTML')
-        
-        if raqam_match:
-            start = int(raqam_match.group(1))
-            count = int(raqam_match.group(2))
+        for idx, file_info in enumerate(files):
+            number = start_num + idx
+            caption = format_text.replace(pattern_text, str(number))
             
-            # Fayllarni nomlab yuborish
-            for idx, file_info in enumerate(files[:count]):
-                number = start + idx
-                caption = format_text.replace(raqam_match.group(0), str(number))
-                
-                if file_info['type'] == 'video':
-                    bot.send_video(message.chat.id, file_info['file_id'], caption=caption)
-                elif file_info['type'] == 'photo':
-                    bot.send_photo(message.chat.id, file_info['file_id'], caption=caption)
-                elif file_info['type'] == 'document':
-                    bot.send_document(message.chat.id, file_info['file_id'], caption=caption)
-                elif file_info['type'] == 'audio':
-                    bot.send_audio(message.chat.id, file_info['file_id'], caption=caption)
-                
-                time.sleep(0.1)
-        
-        elif text_raqam_match:
-            start = int(text_raqam_match.group(1))
-            count = int(text_raqam_match.group(2))
+            # Format turiga qarab parse_mode tanlash
+            if format_type == 'raqam':
+                # HTML kodlar ishlaydi
+                parse = 'HTML'
+            else:
+                # Oddiy text
+                parse = None
             
-            # Fayllarni nomlab yuborish
-            for idx, file_info in enumerate(files[:count]):
-                number = start + idx
-                caption = format_text.replace(text_raqam_match.group(0), str(number))
-                
+            try:
                 if file_info['type'] == 'video':
-                    bot.send_video(message.chat.id, file_info['file_id'], caption=caption)
+                    bot.send_video(message.chat.id, file_info['file_id'], caption=caption, parse_mode=parse)
                 elif file_info['type'] == 'photo':
-                    bot.send_photo(message.chat.id, file_info['file_id'], caption=caption)
+                    bot.send_photo(message.chat.id, file_info['file_id'], caption=caption, parse_mode=parse)
                 elif file_info['type'] == 'document':
-                    bot.send_document(message.chat.id, file_info['file_id'], caption=caption)
+                    bot.send_document(message.chat.id, file_info['file_id'], caption=caption, parse_mode=parse)
                 elif file_info['type'] == 'audio':
-                    bot.send_audio(message.chat.id, file_info['file_id'], caption=caption)
-                
-                time.sleep(0.1)
+                    bot.send_audio(message.chat.id, file_info['file_id'], caption=caption, parse_mode=parse)
+            except Exception as e:
+                # Agar HTML xatosi bo'lsa, oddiy text sifatida yuborish
+                bot.send_video(message.chat.id, file_info['file_id'], caption=caption, parse_mode=None)
+            
+            time.sleep(0.1)
         
         bot.send_message(message.chat.id, "✅ <b>Barcha fayllar nomlandi!</b>", parse_mode='HTML')
         
         # Ma'lumotlarni tozalash
         user_states[user_id] = None
-        del user_combo_data[user_id]
+        if user_id in user_combo_data:
+            del user_combo_data[user_id]
     
     else:
         bot.reply_to(message, "❌ Siz /combo rejimida emassiz yoki hali format kiritmadingiz!")
@@ -199,17 +209,23 @@ def handle_text_messages(message):
     text = message.text
     state = user_states.get(user_id, None)
     
-    # /textcopy rejimi
+    # /textcopy rejimi - HTML parse qilish bilan
     if state == 'textcopy':
         if any(pattern in text for pattern in ['- raqam -', '- text -', '- textenter -']):
             try:
                 results = process_textcopy_message(text)
-                for msg_type, msg_content in results:
+                for msg_type, msg_content, parse_mode in results:
                     if msg_type == "individual":
-                        bot.send_message(message.chat.id, msg_content, parse_mode=None)
+                        try:
+                            bot.send_message(message.chat.id, msg_content, parse_mode=parse_mode)
+                        except:
+                            bot.send_message(message.chat.id, msg_content, parse_mode=None)
                         time.sleep(0.05)
                     else:
-                        bot.send_message(message.chat.id, msg_content, parse_mode=None)
+                        try:
+                            bot.send_message(message.chat.id, msg_content, parse_mode=parse_mode)
+                        except:
+                            bot.send_message(message.chat.id, msg_content, parse_mode=None)
             except Exception as e:
                 bot.reply_to(message, f"❌ Xatolik: {str(e)}")
         else:
@@ -223,11 +239,22 @@ def handle_text_messages(message):
                 'format': text,
                 'files': []
             }
-            bot.reply_to(message, "✅ Format qabul qilindi!\n\n📎 Endi video/rasm/fayllarni yuboring.\n/stop buyrug'i bilan yakunlang.")
+            bot.reply_to(
+                message, 
+                "✅ Format qabul qilindi!\n\n"
+                "📎 Endi video/rasm/fayllarni yuboring.\n"
+                "/stop buyrug'i bilan yakunlang."
+            )
         else:
-            bot.reply_to(message, "❌ Format xato! Iltimos, {0 - raqam - 1} yoki {0 - text raqam - 1} formatidan foydalaning.")
+            bot.reply_to(
+                message, 
+                "❌ Format xato! Iltimos, {1 - raqam} yoki {1 - text raqam} formatidan foydalaning.\n\n"
+                "Masalan:\n"
+                "<b>Video {1 - raqam}</b> - HTML ishlaydi\n"
+                "Video {1 - text raqam} - oddiy text",
+                parse_mode='HTML'
+            )
     
-    # Boshqa holatlar
     elif state == 'combo_files':
         bot.reply_to(message, "📎 Iltimos, video/rasm/fayl yuboring yoki /stop buyrug'i bilan yakunlang.")
     else:
@@ -240,35 +267,25 @@ def handle_files(message):
     state = user_states.get(user_id, None)
     
     if state == 'combo_files' and user_id in user_combo_data:
-        # Fayl ma'lumotlarini aniqlash
         file_info = {}
         
         if message.video:
-            file_info = {
-                'type': 'video',
-                'file_id': message.video.file_id
-            }
+            file_info = {'type': 'video', 'file_id': message.video.file_id}
         elif message.photo:
-            file_info = {
-                'type': 'photo',
-                'file_id': message.photo[-1].file_id  # Eng katta rasm
-            }
+            file_info = {'type': 'photo', 'file_id': message.photo[-1].file_id}
         elif message.document:
-            file_info = {
-                'type': 'document',
-                'file_id': message.document.file_id
-            }
+            file_info = {'type': 'document', 'file_id': message.document.file_id}
         elif message.audio:
-            file_info = {
-                'type': 'audio',
-                'file_id': message.audio.file_id
-            }
+            file_info = {'type': 'audio', 'file_id': message.audio.file_id}
         
-        # Faylni ro'yxatga qo'shish
         user_combo_data[user_id]['files'].append(file_info)
-        
         files_count = len(user_combo_data[user_id]['files'])
-        bot.reply_to(message, f"✅ Fayl qabul qilindi! (Jami: {files_count} ta)\n/stop buyrug'i bilan yakunlang.")
+        
+        bot.reply_to(
+            message, 
+            f"✅ Fayl qabul qilindi! (Jami: {files_count} ta)\n"
+            "/stop buyrug'i bilan yakunlang."
+        )
     
     elif state == 'combo_format':
         bot.reply_to(message, "❌ Avval formatni yuboring!")
