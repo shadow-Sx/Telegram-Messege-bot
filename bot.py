@@ -2,10 +2,7 @@ import os
 import re
 import time
 import telebot
-from flask import Flask, request
-
-# Flask server yaratish (Render uchun kerak)
-app = Flask(__name__)
+from telebot import types
 
 # Environment variable'dan tokenni olish
 BOT_TOKEN = os.getenv("BOT_TOKEN")
@@ -142,54 +139,40 @@ def handle_all_messages(message):
     
     if state == 'textcopy':
         if any(pattern in text for pattern in ['- raqam -', '- text -', '- textenter -']):
-            results = process_textcopy_message(text)
-            for msg_type, msg_content in results:
-                if msg_type == "individual":
-                    bot.send_message(message.chat.id, msg_content)
-                    time.sleep(0.05)
-                else:
-                    bot.send_message(message.chat.id, msg_content)
+            try:
+                results = process_textcopy_message(text)
+                for msg_type, msg_content in results:
+                    if msg_type == "individual":
+                        bot.send_message(message.chat.id, msg_content)
+                        time.sleep(0.05)
+                    else:
+                        bot.send_message(message.chat.id, msg_content)
+            except Exception as e:
+                bot.reply_to(message, f"❌ Xatolik yuz berdi: {str(e)}")
         else:
-            bot.reply_to(message, "❌ Format xato! Iltimos, to'g'ri formatdan foydalaning.")
+            bot.reply_to(message, "❌ Format xato! Iltimos, to'g'ri formatdan foydalaning.\nMasalan: <code>Salom {1 - text - 5}</code>", parse_mode='HTML')
     
     elif state == 'combo':
         if any(pattern in text for pattern in ['- raqam -', '- text raqam -']):
-            result = process_combo_message(text)
-            bot.send_message(message.chat.id, result)
+            try:
+                result = process_combo_message(text)
+                bot.send_message(message.chat.id, result)
+            except Exception as e:
+                bot.reply_to(message, f"❌ Xatolik yuz berdi: {str(e)}")
         else:
-            bot.reply_to(message, "❌ Format xato! Iltimos, to'g'ri formatdan foydalaning.")
+            bot.reply_to(message, "❌ Format xato! Iltimos, to'g'ri formatdan foydalaning.\nMasalan: <code>Raqamlar: {1 - raqam - 5}</code>", parse_mode='HTML')
     
     else:
         bot.reply_to(message, "Iltimos, avval /textcopy yoki /combo buyrug'ini yuboring.")
 
 
-# Flask route - Render Web Service uchun
-@app.route('/')
-def index():
-    return "Bot is running!"
-
-
-@app.route('/webhook', methods=['POST'])
-def webhook():
-    if request.headers.get('content-type') == 'application/json':
-        json_string = request.get_data().decode('utf-8')
-        update = telebot.types.Update.de_json(json_string)
-        bot.process_new_updates([update])
-        return ''
-    else:
-        return 'error', 403
-
-
+# Botni polling bilan ishga tushirish
 if __name__ == '__main__':
-    # Webhook o'rnatish yoki polling
-    WEBHOOK_URL = os.getenv("WEBHOOK_URL", "")
+    print("Bot ishga tushmoqda...")
+    print("Polling mode faollashtirildi")
     
-    if WEBHOOK_URL:
-        # Webhook orqali ishlash
-        bot.remove_webhook()
-        bot.set_webhook(url=WEBHOOK_URL)
-        app.run(host='0.0.0.0', port=int(os.getenv('PORT', 5000)))
-    else:
-        # Polling orqali ishlash
-        print("Bot polling mode da ishga tushdi...")
-        bot.infinity_polling()
+    # Eski webhooklarni o'chirish
+    bot.remove_webhook()
+    
+    # Polling bilan ishga tushirish
+    bot.infinity_polling(timeout=10, long_polling_timeout=5)
