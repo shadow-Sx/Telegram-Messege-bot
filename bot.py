@@ -1,6 +1,8 @@
 import os
 import re
 import time
+import threading
+from flask import Flask, request
 import telebot
 from telebot import types
 
@@ -10,6 +12,7 @@ if not BOT_TOKEN:
     raise ValueError("BOT_TOKEN environment variable topilmadi!")
 
 bot = telebot.TeleBot(BOT_TOKEN)
+app = Flask(__name__)
 
 # Foydalanuvchi holatini saqlash
 user_states = {}
@@ -23,16 +26,13 @@ def process_textcopy_message(text):
     text_pattern = r'\{(\d+)\s*-\s*text\s*-\s*(\d+)\}'
     textenter_pattern = r'\{(\d+)\s*-\s*textenter\s*-\s*(\d+)\}'
     
-    # {0 - raqam - 1} - alohida xabarlar
     for match in re.finditer(raqam_pattern, text):
         start = int(match.group(1))
         count = int(match.group(2))
         template = text.replace(match.group(0), '{}').strip()
         for i in range(start, start + count):
-            msg = template.format(i)
-            results.append(("individual", msg))
+            results.append(("individual", template.format(i)))
     
-    # {0 - text - 1} - bitta xabarda vergul bilan
     for match in re.finditer(text_pattern, text):
         start = int(match.group(1))
         count = int(match.group(2))
@@ -40,7 +40,6 @@ def process_textcopy_message(text):
         parts = [template.format(i) for i in range(start, start + count)]
         results.append(("combined", ", ".join(parts)))
     
-    # {0 - textenter - 1} - yangi qatordan
     for match in re.finditer(textenter_pattern, text):
         start = int(match.group(1))
         count = int(match.group(2))
@@ -58,14 +57,12 @@ def process_combo_message(text):
     raqam_pattern = r'\{(\d+)\s*-\s*raqam\s*-\s*(\d+)\}'
     text_raqam_pattern = r'\{(\d+)\s*-\s*text\s*raqam\s*-\s*(\d+)\}'
     
-    # {0 - raqam - 1}
     for match in re.finditer(raqam_pattern, result):
         start = int(match.group(1))
         count = int(match.group(2))
         numbers = [str(i) for i in range(start, start + count)]
         result = result.replace(match.group(0), ", ".join(numbers), 1)
     
-    # {0 - text raqam - 1}
     for match in re.finditer(text_raqam_pattern, result):
         start = int(match.group(1))
         count = int(match.group(2))
@@ -148,9 +145,9 @@ def handle_all_messages(message):
                     else:
                         bot.send_message(message.chat.id, msg_content)
             except Exception as e:
-                bot.reply_to(message, f"❌ Xatolik yuz berdi: {str(e)}")
+                bot.reply_to(message, f"❌ Xatolik: {str(e)}")
         else:
-            bot.reply_to(message, "❌ Format xato! Iltimos, to'g'ri formatdan foydalaning.\nMasalan: <code>Salom {1 - text - 5}</code>", parse_mode='HTML')
+            bot.reply_to(message, "❌ Format xato!", parse_mode='HTML')
     
     elif state == 'combo':
         if any(pattern in text for pattern in ['- raqam -', '- text raqam -']):
@@ -158,21 +155,32 @@ def handle_all_messages(message):
                 result = process_combo_message(text)
                 bot.send_message(message.chat.id, result)
             except Exception as e:
-                bot.reply_to(message, f"❌ Xatolik yuz berdi: {str(e)}")
+                bot.reply_to(message, f"❌ Xatolik: {str(e)}")
         else:
-            bot.reply_to(message, "❌ Format xato! Iltimos, to'g'ri formatdan foydalaning.\nMasalan: <code>Raqamlar: {1 - raqam - 5}</code>", parse_mode='HTML')
+            bot.reply_to(message, "❌ Format xato!", parse_mode='HTML')
     
     else:
         bot.reply_to(message, "Iltimos, avval /textcopy yoki /combo buyrug'ini yuboring.")
 
 
-# Botni polling bilan ishga tushirish
-if __name__ == '__main__':
+@app.route('/')
+def index():
+    return "Bot is running 24/7!"
+
+
+def run_bot():
+    """Botni polling bilan ishga tushirish"""
     print("Bot ishga tushmoqda...")
-    print("Polling mode faollashtirildi")
-    
-    # Eski webhooklarni o'chirish
     bot.remove_webhook()
-    
-    # Polling bilan ishga tushirish
     bot.infinity_polling(timeout=10, long_polling_timeout=5)
+
+
+if __name__ == '__main__':
+    # Botni alohida thread'da ishga tushirish
+    bot_thread = threading.Thread(target=run_bot)
+    bot_thread.daemon = True
+    bot_thread.start()
+    
+    # Flask serverni ishga tushirish
+    port = int(os.getenv("PORT", 10000))
+    app.run(host='0.0.0.0', port=port)
