@@ -90,12 +90,12 @@ def get_combo_format_type(text):
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
     welcome_text = (
-        "🤖 <b>Salom! Men TextCopy Bot man</b>\n\n"
+        "🤖 <b>Salom! Men Avto Nomlash Bot man</b>\n\n"
         "Men sizga matnlarni nusxalash va raqamlashda yordam beraman.\n\n"
         "📋 <b>Mavjud buyruqlar:</b>\n"
         "• /textcopy - Matn nusxalash va raqamlash\n"
         "• /combo - Fayllarni nomlash\n\n"
-        "Har bir buyruq haqida batafsil ma'lumot olish uchun buyruqni yuboring."
+        "Botdan maroq bilan foydalaning | @AvtoNomlash"
     )
     bot.reply_to(message, welcome_text, parse_mode='HTML')
 
@@ -105,17 +105,16 @@ def cmd_textcopy(message):
     user_id = message.from_user.id
     user_states[user_id] = 'textcopy'
     
-    help_text = (
-        "📝 <b>TextCopy buyrug'i uchun formatlar:</b>\n\n"
-        "1️⃣ <code>{0 - raqam - 1}</code> - Alohida xabarlarda raqamlash\n"
-        "   Masalan: <code>&lt;b&gt;Darslik {1 - raqam - 15}&lt;/b&gt;</code>\n"
-        "   <i>HTML kodlar ishlaydi!</i>\n\n"
-        "2️⃣ <code>{0 - text - 1}</code> - Bitta xabarda yonma-yon\n"
-        "   Masalan: <code>&lt;i&gt;Salom {1 - text - 20}&lt;/i&gt;</code>\n\n"
-        "3️⃣ <code>{0 - textenter - 1}</code> - Yangi qatordan\n"
-        "   Masalan: <code>&lt;b&gt;salom {1 - textenter - 4}&lt;/b&gt;</code>\n\n"
-        "✍️ <b>Endi kerakli formatda matn yuboring!</b>"
-    )
+    help_text = """
+Salom menga text yuboring textingiz Ichida <code>{0 - raqam - 1}</code>, <code>{0 - text - 1}</code>, <code>{0 - textenter - 1}</code> bo'lsa men sizga ularni raqamlab yozib beraman
+
+📝 <b>TextCopy buyrug'i uchun qo'llanma:</b>
+1️⃣ <code>{0 - raqam - 1}</code> - Alohida xabarlarda raqamlash [<a href="https://t.me/AvtoNomlash/4">BATAFSIL</a>]
+2️⃣ <code>{0 - text - 1}</code> - Bitta xabarda yonma-yon [<a href="https://t.me/AvtoNomlash">BATAFSIL</a>]
+3️⃣ <code>{0 - textenter - 1}</code> - Yangi qatordan [<a href="https://t.me/AvtoNomlash">BATAFSIL</a>]
+
+✍️ <b>Endi kerakli formatda matn yuboring!</b>
+"""
     bot.reply_to(message, help_text, parse_mode='HTML')
 
 
@@ -124,22 +123,14 @@ def cmd_combo(message):
     user_id = message.from_user.id
     user_states[user_id] = 'combo_format'
     
-    help_text = (
-        "🔄 <b>Combo buyrug'i - Fayllarni nomlash</b>\n\n"
-        "Bu buyruq orqali siz yuborgan video/rasm/fayllarni avtomatik nomlab beraman.\n\n"
-        "📝 <b>2 xil format mavjud:</b>\n\n"
-        "1️⃣ <code>{1 - raqam}</code> - <b>HTML kodlar ishlaydi</b>\n"
-        "   Masalan: <code>&lt;b&gt;Video {1 - raqam}&lt;/b&gt;</code>\n"
-        "   Natija: <b>Video 1</b>, <b>Video 2</b>, ...\n\n"
-        "2️⃣ <code>{1 - text raqam}</code> - <b>Oddiy text</b>\n"
-        "   Masalan: <code>&lt;i&gt;Video {1 - text raqam}&lt;/i&gt;</code>\n"
-        "   Natija: &lt;i&gt;Video 1&lt;/i&gt; (oddiy text)\n\n"
-        "📎 <b>Ishlash tartibi:</b>\n"
-        "1️⃣ Formatni yuboring\n"
-        "2️⃣ Video/rasm/fayllarni yuboring\n"
-        "3️⃣ /stop buyrug'i bilan yakunlang\n\n"
-        "✍️ <b>Avval formatni yuboring:</b>"
-    )
+    help_text = """
+    Salom menga <code>{1 - raqam}</code>, <code>{1 - text raqam}</code> buyruqlardan foydalanib menga habar yuboring men ularni sizning habaringizga qoshib beraman
+
+{1 - raqam} - [<a href="https://t.me/AvtoNomlash">BATAFSIL</a>]
+{1 - text raqam} - [<a href="https://t.me/AvtoNomlash">BATAFSIL</a>]
+    
+        ✍️ <b>Yaxshi endi habaringizni yuboring:</b>
+    """
     bot.reply_to(message, help_text, parse_mode='HTML')
 
 
@@ -200,7 +191,7 @@ def cmd_stop(message):
             del user_combo_data[user_id]
     
     else:
-        bot.reply_to(message, "❌ Siz /combo rejimida emassiz yoki hali format kiritmadingiz!")
+        bot.reply_to(message, "")
 
 
 @bot.message_handler(content_types=['text'])
@@ -229,7 +220,7 @@ def handle_text_messages(message):
             except Exception as e:
                 bot.reply_to(message, f"❌ Xatolik: {str(e)}")
         else:
-            bot.reply_to(message, "❌ Format xato! Iltimos, to'g'ri formatdan foydalaning.")
+            bot.reply_to(message, "❌ Habaringiz xato! Iltimos, habaringizni to'g'ri yuboring.")
     
     # /combo rejimi - format kiritish
     elif state == 'combo_format':
@@ -241,7 +232,7 @@ def handle_text_messages(message):
             }
             bot.reply_to(
                 message, 
-                "✅ Format qabul qilindi!\n\n"
+                "✅ Habar qabul qilindi!\n\n"
                 "📎 Endi video/rasm/fayllarni yuboring.\n"
                 "/stop buyrug'i bilan yakunlang."
             )
@@ -250,15 +241,16 @@ def handle_text_messages(message):
                 message, 
                 "❌ Format xato! Iltimos, {1 - raqam} yoki {1 - text raqam} formatidan foydalaning.\n\n"
                 "Masalan:\n"
-                "<b>Video {1 - raqam}</b> - HTML ishlaydi\n"
-                "Video {1 - text raqam} - oddiy text",
+                "<b>Video <code>{1 - raqam}</code></b> - bilan \n"
+                "<b>Yoki</b>\n"
+                "Video <code>{1 - text raqam}</code> - qoshilgan holda habar yuboring",
                 parse_mode='HTML'
             )
     
     elif state == 'combo_files':
         bot.reply_to(message, "📎 Iltimos, video/rasm/fayl yuboring yoki /stop buyrug'i bilan yakunlang.")
     else:
-        bot.reply_to(message, "Iltimos, avval /textcopy yoki /combo buyrug'ini yuboring.")
+        bot.reply_to(message, "To'xtang, avval /textcopy yoki /combo buyrug'ini yuboring.")
 
 
 @bot.message_handler(content_types=['video', 'photo', 'document', 'audio'])
@@ -288,7 +280,7 @@ def handle_files(message):
         )
     
     elif state == 'combo_format':
-        bot.reply_to(message, "❌ Avval formatni yuboring!")
+        bot.reply_to(message, "❌ Avval Habaringizni kiriting!")
     else:
         bot.reply_to(message, "Iltimos, avval /combo buyrug'ini yuboring.")
 
