@@ -259,7 +259,7 @@ def handle_files(message):
     state = user_states.get(user_id, None)
     
     if state == 'combo_files' and user_id in user_combo_data:
-        file_info = ֎֎
+        file_info = {}
         
         if message.video:
             file_info = {'type': 'video', 'file_id': message.video.file_id}
