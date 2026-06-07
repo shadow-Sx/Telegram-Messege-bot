@@ -25,18 +25,13 @@ def process_textcopy_message(text):
     """
     results = []
     
-    # Aniq regex naqshlar
+    # Regex naqshlar
     raqam_pattern = r'\{(\d+)\s*-\s*raqam\s*-\s*(\d+)\}'
     text_pattern = r'\{(\d+)\s*-\s*text\s*-\s*(\d+)\}'
     textenter_pattern = r'\{(\d+)\s*-\s*textenter\s*-\s*(\d+)\}'
     
-    # Barcha mosliklarni topish
-    raqam_matches = list(re.finditer(raqam_pattern, text))
-    text_matches = list(re.finditer(text_pattern, text))
-    textenter_matches = list(re.finditer(textenter_pattern, text))
-    
-    # {0 - raqam - 1} - alohida xabarlar
-    for match in raqam_matches:
+    # {0 - raqam - 1} - alohida xabarlar (HTML parse qilinadi)
+    for match in re.finditer(raqam_pattern, text):
         start = int(match.group(1))
         count = int(match.group(2))
         template = text.replace(match.group(0), '{}').strip()
@@ -44,16 +39,16 @@ def process_textcopy_message(text):
             msg = template.format(i)
             results.append(("individual", msg, 'HTML'))
     
-    # {0 - text - 1} - bitta xabarda
-    for match in text_matches:
+    # {0 - text - 1} - bitta xabarda (HTML parse qilinadi)
+    for match in re.finditer(text_pattern, text):
         start = int(match.group(1))
         count = int(match.group(2))
         template = text.replace(match.group(0), '{}').strip()
         parts = [template.format(i) for i in range(start, start + count)]
         results.append(("combined", ", ".join(parts), 'HTML'))
     
-    # {0 - textenter - 1} - yangi qatordan
-    for match in textenter_matches:
+    # {0 - textenter - 1} - yangi qatordan (HTML parse qilinadi)
+    for match in re.finditer(textenter_pattern, text):
         start = int(match.group(1))
         count = int(match.group(2))
         template = text.replace(match.group(0), '{}').strip()
@@ -67,7 +62,6 @@ def process_combo_format(text):
     """
     /combo format matnni qayta ishlash
     """
-    # Aniq regex naqshlar
     raqam_pattern = r'\{(\d+)\s*-\s*raqam\}'
     text_raqam_pattern = r'\{(\d+)\s*-\s*text\s*raqam\}'
     
@@ -81,7 +75,6 @@ def get_combo_format_type(text):
     """
     Combo format turini aniqlash
     """
-    # Aniq regex naqshlar
     raqam_pattern = r'\{(\d+)\s*-\s*raqam\}'
     text_raqam_pattern = r'\{(\d+)\s*-\s*text\s*raqam\}'
     
@@ -118,9 +111,9 @@ def cmd_textcopy(message):
 Salom menga text yuboring textingiz Ichida <code>{0 - raqam - 1}</code>, <code>{0 - text - 1}</code>, <code>{0 - textenter - 1}</code> bo'lsa men sizga ularni raqamlab yozib beraman
 
 📝 <b>TextCopy buyrug'i uchun qo'llanma:</b>
-1️⃣ <code>{0 - raqam - 1}</code> - Alohida xabarlarda raqamlash
-2️⃣ <code>{0 - text - 1}</code> - Bitta xabarda yonma-yon
-3️⃣ <code>{0 - textenter - 1}</code> - Yangi qatordan
+1️⃣ <code>{0 - raqam - 1}</code> - Alohida xabarlarda raqamlash [<a href="https://t.me/AvtoNomlash/4">BATAFSIL</a>]
+2️⃣ <code>{0 - text - 1}</code> - Bitta xabarda yonma-yon [<a href="https://t.me/AvtoNomlash">BATAFSIL</a>]
+3️⃣ <code>{0 - textenter - 1}</code> - Yangi qatordan [<a href="https://t.me/AvtoNomlash">BATAFSIL</a>]
 
 ✍️ <b>Endi kerakli formatda matn yuboring!</b>
 """
@@ -135,9 +128,9 @@ def cmd_combo(message):
     help_text = """
 Salom menga <code>{1 - raqam}</code>, <code>{1 - text raqam}</code> buyruqlardan foydalanib menga habar yuboring men ularni sizning habaringizga qoshib beraman
 
-{1 - raqam} - Raqam bilan nomlash
-{1 - text raqam} - Matn va raqam bilan nomlash
-
+{1 - raqam} - [<a href="https://t.me/AvtoNomlash">BATAFSIL</a>]
+{1 - text raqam} - [<a href="https://t.me/AvtoNomlash">BATAFSIL</a>]
+    
 ✍️ <b>Yaxshi endi habaringizni yuboring:</b>
     """
     bot.reply_to(message, help_text, parse_mode='HTML')
@@ -188,7 +181,7 @@ def cmd_stop(message):
                 elif file_info['type'] == 'audio':
                     bot.send_audio(message.chat.id, file_info['file_id'], caption=caption, parse_mode=parse)
             except Exception as e:
-                # Agar xatolik bo'lsa, oddiy text sifatida yuborish
+                # Agar HTML xatosi bo'lsa, oddiy text sifatida yuborish
                 try:
                     if file_info['type'] == 'video':
                         bot.send_video(message.chat.id, file_info['file_id'], caption=caption, parse_mode=None)
@@ -225,34 +218,28 @@ def handle_text_messages(message):
     
     # /textcopy rejimi
     if state == 'textcopy':
-        # To'g'ri formatlar borligini tekshirish
-        has_valid_format = bool(re.search(r'\{\d+\s*-\s*(raqam|text|textenter)\s*-\s*\d+\}', text))
-        
-        if has_valid_format:
-            try:
-                results = process_textcopy_message(text)
-                if results:
-                    for msg_type, msg_content, parse_mode in results:
-                        if msg_type == "individual":
-                            try:
-                                bot.send_message(message.chat.id, msg_content, parse_mode=parse_mode)
-                            except:
-                                bot.send_message(message.chat.id, msg_content, parse_mode=None)
-                            time.sleep(0.05)
-                        else:
-                            try:
-                                bot.send_message(message.chat.id, msg_content, parse_mode=parse_mode)
-                            except:
-                                bot.send_message(message.chat.id, msg_content, parse_mode=None)
-                else:
-                    bot.reply_to(message, "❌ Format topildi lekin natija bo'sh!")
-            except Exception as e:
-                bot.reply_to(message, f"❌ Xatolik: {str(e)}")
-        else:
-            bot.reply_to(message, "❌ Habaringiz xato! Iltimos, quyidagi formatlardan birini ishlating:\n"
+        try:
+            results = process_textcopy_message(text)
+            if results:
+                for msg_type, msg_content, parse_mode in results:
+                    if msg_type == "individual":
+                        try:
+                            bot.send_message(message.chat.id, msg_content, parse_mode=parse_mode)
+                        except:
+                            bot.send_message(message.chat.id, msg_content, parse_mode=None)
+                        time.sleep(0.05)
+                    else:
+                        try:
+                            bot.send_message(message.chat.id, msg_content, parse_mode=parse_mode)
+                        except:
+                            bot.send_message(message.chat.id, msg_content, parse_mode=None)
+            else:
+                bot.reply_to(message, "❌ Habaringiz xato! Iltimos, quyidagi formatlardan birini ishlating:\n"
                            "• {0 - raqam - 1}\n"
                            "• {0 - text - 1}\n"
                            "• {0 - textenter - 1}")
+        except Exception as e:
+            bot.reply_to(message, f"❌ Xatolik: {str(e)}")
     
     # /combo rejimi - format kiritish
     elif state == 'combo_format':
@@ -263,9 +250,9 @@ def handle_text_messages(message):
                     message, 
                     "❌ Format xato! Iltimos, {1 - raqam} yoki {1 - text raqam} formatidan foydalaning.\n\n"
                     "Masalan:\n"
-                    "<b>Video <code>{1 - raqam}</code></b>\n"
+                    "<b>Video <code>{1 - raqam}</code></b> - bilan \n"
                     "<b>Yoki</b>\n"
-                    "Video <code>{1 - text raqam}</code></b>",
+                    "Video <code>{1 - text raqam}</code> - qoshilgan holda habar yuboring",
                     parse_mode='HTML'
                 )
                 return
@@ -286,9 +273,9 @@ def handle_text_messages(message):
                 message, 
                 "❌ Format xato! Iltimos, {1 - raqam} yoki {1 - text raqam} formatidan foydalaning.\n\n"
                 "Masalan:\n"
-                "<b>Video <code>{1 - raqam}</code></b>\n"
+                "<b>Video <code>{1 - raqam}</code></b> - bilan \n"
                 "<b>Yoki</b>\n"
-                "Video <code>{1 - text raqam}</code></b>",
+                "Video <code>{1 - text raqam}</code> - qoshilgan holda habar yuboring",
                 parse_mode='HTML'
             )
     
