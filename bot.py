@@ -19,9 +19,10 @@ user_combo_data = {}
 def process_textcopy_message(text):
     results = []
     
-    raqam_pattern = r'(\d+)\s*-\s*raqam\s*-\s*(\d+)'
-    text_pattern = r'(\d+)\s*-\s*text\s*-\s*(\d+)'
-    textenter_pattern = r'(\d+)\s*-\s*textenter\s*-\s*(\d+)'
+    # {} belgili yoki belgisiz formatlarni qabul qiladi
+    raqam_pattern = r'\{?(\d+)\s*-\s*raqam\s*-\s*(\d+)\}?'
+    text_pattern = r'\{?(\d+)\s*-\s*text\s*-\s*(\d+)\}?'
+    textenter_pattern = r'\{?(\d+)\s*-\s*textenter\s*-\s*(\d+)\}?'
     
     for match in re.finditer(raqam_pattern, text):
         start = int(match.group(1))
@@ -49,8 +50,8 @@ def process_textcopy_message(text):
 
 
 def process_combo_format(text):
-    raqam_pattern = r'(\d+)\s*-\s*raqam'
-    text_raqam_pattern = r'(\d+)\s*-\s*text\s*raqam'
+    raqam_pattern = r'\{?(\d+)\s*-\s*raqam\}?'
+    text_raqam_pattern = r'\{?(\d+)\s*-\s*text\s*raqam\}?'
     
     has_raqam = bool(re.search(raqam_pattern, text))
     has_text_raqam = bool(re.search(text_raqam_pattern, text))
@@ -59,8 +60,8 @@ def process_combo_format(text):
 
 
 def get_combo_format_type(text):
-    raqam_pattern = r'(\d+)\s*-\s*raqam'
-    text_raqam_pattern = r'(\d+)\s*-\s*text\s*raqam'
+    raqam_pattern = r'\{?(\d+)\s*-\s*raqam\}?'
+    text_raqam_pattern = r'\{?(\d+)\s*-\s*text\s*raqam\}?'
     
     raqam_match = re.search(raqam_pattern, text)
     text_raqam_match = re.search(text_raqam_pattern, text)
@@ -94,11 +95,12 @@ def cmd_textcopy(message):
 📝 <b>TextCopy - Matn nusxalash</b>
 
 <b>Formatlar:</b>
-1️⃣ <code>0 - raqam - 5</code> - Alohida xabarlar
-2️⃣ <code>0 - text - 5</code> - Bitta xabarda yonma-yon
-3️⃣ <code>0 - textenter - 5</code> - Yangi qatordan
+1️⃣ <code>{0 - raqam - 5}</code> yoki <code>0 - raqam - 5</code> - Alohida xabarlar
+2️⃣ <code>{0 - text - 5}</code> yoki <code>0 - text - 5</code> - Bitta xabarda
+3️⃣ <code>{0 - textenter - 5}</code> yoki <code>0 - textenter - 5</code> - Yangi qatordan
 
 <b>Misol:</b>
+<code>Anime nomi {1 - raqam - 3}-qism</code>
 <code>Anime nomi 1 - raqam - 3-qism</code>
 
 ✍️ <b>Endi matn yuboring!</b>
@@ -115,10 +117,11 @@ def cmd_combo(message):
 📁 <b>Combo - Fayllarni nomlash</b>
 
 <b>Formatlar:</b>
-1️⃣ <code>1 - raqam</code> - Raqam bilan
-2️⃣ <code>1 - text raqam</code> - Matn va raqam bilan
+1️⃣ <code>{1 - raqam}</code> yoki <code>1 - raqam</code>
+2️⃣ <code>{1 - text raqam}</code> yoki <code>1 - text raqam</code>
 
 <b>Misol:</b>
+<code>Video {1 - raqam}</code>
 <code>Video 1 - raqam</code>
 
 ✍️ <b>Endi formatni yuboring!</b>
@@ -213,11 +216,11 @@ def handle_text_messages(message):
                             except:
                                 bot.send_message(message.chat.id, msg_content, parse_mode=None)
                 else:
-                    bot.reply_to(message, "❌ Format xato! Misol: <code>Anime 1 - raqam - 3-qism</code>", parse_mode='HTML')
+                    bot.reply_to(message, "❌ Format xato! Misol: <code>{1 - raqam - 3}-qism</code>", parse_mode='HTML')
             except Exception as e:
                 bot.reply_to(message, f"❌ Xatolik: {str(e)}")
         else:
-            bot.reply_to(message, "❌ Format topilmadi! Misol: <code>test 0 - raqam - 3</code>", parse_mode='HTML')
+            bot.reply_to(message, "❌ Format topilmadi! Misol: <code>test {0 - raqam - 3}</code>", parse_mode='HTML')
     
     elif state == 'combo_format':
         if process_combo_format(text):
@@ -228,7 +231,7 @@ def handle_text_messages(message):
             }
             bot.reply_to(message, "✅ Qabul qilindi!\n\n📎 Endi fayllarni yuboring.\n/stop bilan yakunlang.")
         else:
-            bot.reply_to(message, "❌ Format xato! Misol: <code>Video 1 - raqam</code>", parse_mode='HTML')
+            bot.reply_to(message, "❌ Format xato! Misol: <code>Video {1 - raqam}</code>", parse_mode='HTML')
     
     elif state == 'combo_files':
         bot.reply_to(message, "📎 Fayl yuboring yoki /stop bosing.")
