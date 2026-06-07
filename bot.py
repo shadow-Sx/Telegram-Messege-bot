@@ -14,8 +14,8 @@ bot = telebot.TeleBot(BOT_TOKEN)
 app = Flask(__name__)
 
 # Foydalanuvchi ma'lumotlarini saqlash
-user_states = ֎֎
-user_combo_data = ֎֎
+user_states = {}
+user_combo_data = {}
 
 
 def process_textcopy_message(text):
@@ -259,7 +259,7 @@ def handle_files(message):
     state = user_states.get(user_id, None)
     
     if state == 'combo_files' and user_id in user_combo_data:
-        file_info = {}
+        file_info = ֎֎
         
         if message.video:
             file_info = {'type': 'video', 'file_id': message.video.file_id}
