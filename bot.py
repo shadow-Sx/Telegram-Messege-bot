@@ -25,12 +25,22 @@ def process_textcopy_message(text):
     """
     results = []
     
+    # Aniq regex naqshlar - faqat to'g'ri formatlarni qidiradi
     raqam_pattern = r'\{(\d+)\s*-\s*raqam\s*-\s*(\d+)\}'
     text_pattern = r'\{(\d+)\s*-\s*text\s*-\s*(\d+)\}'
     textenter_pattern = r'\{(\d+)\s*-\s*textenter\s*-\s*(\d+)\}'
     
-    # {0 - raqam - 1} - alohida xabarlar (HTML parse qilinadi)
-    for match in re.finditer(raqam_pattern, text):
+    # Barcha mosliklarni topish
+    raqam_matches = list(re.finditer(raqam_pattern, text))
+    text_matches = list(re.finditer(text_pattern, text))
+    textenter_matches = list(re.finditer(textenter_pattern, text))
+    
+    # Agar hech qanday to'g'ri format topilmasa
+    if not raqam_matches and not text_matches and not textenter_matches:
+        return results
+    
+    # {0 - raqam - 1} - alohida xabarlar
+    for match in raqam_matches:
         start = int(match.group(1))
         count = int(match.group(2))
         template = text.replace(match.group(0), '{}').strip()
@@ -38,16 +48,16 @@ def process_textcopy_message(text):
             msg = template.format(i)
             results.append(("individual", msg, 'HTML'))
     
-    # {0 - text - 1} - bitta xabarda (HTML parse qilinadi)
-    for match in re.finditer(text_pattern, text):
+    # {0 - text - 1} - bitta xabarda
+    for match in text_matches:
         start = int(match.group(1))
         count = int(match.group(2))
         template = text.replace(match.group(0), '{}').strip()
         parts = [template.format(i) for i in range(start, start + count)]
         results.append(("combined", ", ".join(parts), 'HTML'))
     
-    # {0 - textenter - 1} - yangi qatordan (HTML parse qilinadi)
-    for match in re.finditer(textenter_pattern, text):
+    # {0 - textenter - 1} - yangi qatordan
+    for match in textenter_matches:
         start = int(match.group(1))
         count = int(match.group(2))
         template = text.replace(match.group(0), '{}').strip()
@@ -57,34 +67,43 @@ def process_textcopy_message(text):
     return results
 
 
-def process_combo_format(text):
-    """
-    /combo format matnni qayta ishlash
-    """
-    raqam_pattern = r'\{(\d+)\s*-\s*raqam\}'
-    text_raqam_pattern = r'\{(\d+)\s*-\s*text\s*raqam\}'
-    
-    has_raqam = bool(re.search(raqam_pattern, text))
-    has_text_raqam = bool(re.search(text_raqam_pattern, text))
-    
-    return has_raqam or has_text_raqam
-
-
-def get_combo_format_type(text):
-    """
-    Combo format turini aniqlash
-    """
-    raqam_pattern = r'\{(\d+)\s*-\s*raqam\}'
-    text_raqam_pattern = r'\{(\d+)\s*-\s*text\s*raqam\}'
-    
-    if re.search(raqam_pattern, text):
-        match = re.search(raqam_pattern, text)
-        return 'raqam', int(match.group(1)), match.group(0)
-    elif re.search(text_raqam_pattern, text):
-        match = re.search(text_raqam_pattern, text)
-        return 'text_raqam', int(match.group(1)), match.group(0)
-    
-    return None, 0, ""
+elif state == 'combo_format':
+    if process_combo_format(text):
+        # Qo'shimcha tekshirish - format to'g'ri ekanligiga ishonch hosil qilish
+        format_type, start_num, pattern_text = get_combo_format_type(text)
+        if format_type is None:
+            bot.reply_to(
+                message, 
+                "❌ Format xato! Iltimos, {1 - raqam} yoki {1 - text raqam} formatidan foydalaning.\n\n"
+                "Masalan:\n"
+                "<b>Video <code>{1 - raqam}</code></b>\n"
+                "<b>Yoki</b>\n"
+                "Video <code>{1 - text raqam}</code></b>",
+                parse_mode='HTML'
+            )
+            return
+        
+        user_states[user_id] = 'combo_files'
+        user_combo_data[user_id] = {
+            'format': text,
+            'files': []
+        }
+        bot.reply_to(
+            message, 
+            "✅ Habar qabul qilindi!\n\n"
+            "📎 Endi video/rasm/fayllarni yuboring.\n"
+            "/stop buyrug'i bilan yakunlang."
+        )
+    else:
+        bot.reply_to(
+            message, 
+            "❌ Format xato! Iltimos, {1 - raqam} yoki {1 - text raqam} formatidan foydalaning.\n\n"
+            "Masalan:\n"
+            "<b>Video <code>{1 - raqam}</code></b>\n"
+            "<b>Yoki</b>\n"
+            "Video <code>{1 - text raqam}</code></b>",
+            parse_mode='HTML'
+        )
 
 
 @bot.message_handler(commands=['start'])
