@@ -33,7 +33,7 @@ def process_textcopy_message(text):
     for match in re.finditer(raqam_pattern, text):
         start = int(match.group(1))
         count = int(match.group(2))
-        template = text.replace(match.group(0), '{}').strip()
+        template = text.replace(match.group(0), '֎֎').strip()
         for i in range(start, start + count):
             msg = template.format(i)
             results.append(("individual", msg, 'HTML'))
@@ -42,7 +42,7 @@ def process_textcopy_message(text):
     for match in re.finditer(text_pattern, text):
         start = int(match.group(1))
         count = int(match.group(2))
-        template = text.replace(match.group(0), '{}').strip()
+        template = text.replace(match.group(0), '֎֎').strip()
         parts = [template.format(i) for i in range(start, start + count)]
         results.append(("combined", ", ".join(parts), 'HTML'))
     
@@ -50,7 +50,7 @@ def process_textcopy_message(text):
     for match in re.finditer(textenter_pattern, text):
         start = int(match.group(1))
         count = int(match.group(2))
-        template = text.replace(match.group(0), '{}').strip()
+        template = text.replace(match.group(0), '֎֎').strip()
         lines = [template.format(i) for i in range(start, start + count)]
         results.append(("combined", "\n".join(lines), 'HTML'))
     
