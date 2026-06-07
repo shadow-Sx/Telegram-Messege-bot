@@ -12,8 +12,8 @@ if not BOT_TOKEN:
 bot = telebot.TeleBot(BOT_TOKEN)
 app = Flask(__name__)
 
-user_states = ֎֎
-user_combo_data = ֎֎
+user_states = {}
+user_combo_data = {}
 
 
 def process_textcopy_message(text):
