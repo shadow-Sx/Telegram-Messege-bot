@@ -1,8 +1,7 @@
 import os
 import re
 import time
-import threading
-from flask import Flask
+from flask import Flask, request
 import telebot
 from telebot import types
 
@@ -25,32 +24,32 @@ def process_textcopy_message(text):
     """
     results = []
     
-    raqam_pattern = r'֎(\d+)\s*-\s*raqam\s*-\s*(\d+)֎'
-    text_pattern = r'֎(\d+)\s*-\s*text\s*-\s*(\d+)֎'
-    textenter_pattern = r'֎(\d+)\s*-\s*textenter\s*-\s*(\d+)֎'
+    raqam_pattern = r'\{(\d+)\s*-\s*raqam\s*-\s*(\d+)\}'
+    text_pattern = r'\{(\d+)\s*-\s*text\s*-\s*(\d+)\}'
+    textenter_pattern = r'\{(\d+)\s*-\s*textenter\s*-\s*(\d+)\}'
     
-    # ֎0 - raqam - 1֎ - alohida xabarlar (HTML parse qilinadi)
+    # {0 - raqam - 1} - alohida xabarlar (HTML parse qilinadi)
     for match in re.finditer(raqam_pattern, text):
         start = int(match.group(1))
         count = int(match.group(2))
-        template = text.replace(match.group(0), '֎֎').strip()
+        template = text.replace(match.group(0), '{}').strip()
         for i in range(start, start + count):
             msg = template.format(i)
             results.append(("individual", msg, 'HTML'))
     
-    # ֎0 - text - 1֎ - bitta xabarda (HTML parse qilinadi)
+    # {0 - text - 1} - bitta xabarda (HTML parse qilinadi)
     for match in re.finditer(text_pattern, text):
         start = int(match.group(1))
         count = int(match.group(2))
-        template = text.replace(match.group(0), '֎֎').strip()
+        template = text.replace(match.group(0), '{}').strip()
         parts = [template.format(i) for i in range(start, start + count)]
         results.append(("combined", ", ".join(parts), 'HTML'))
     
-    # ֎0 - textenter - 1֎ - yangi qatordan (HTML parse qilinadi)
+    # {0 - textenter - 1} - yangi qatordan (HTML parse qilinadi)
     for match in re.finditer(textenter_pattern, text):
         start = int(match.group(1))
         count = int(match.group(2))
-        template = text.replace(match.group(0), '֎֎').strip()
+        template = text.replace(match.group(0), '{}').strip()
         lines = [template.format(i) for i in range(start, start + count)]
         results.append(("combined", "\n".join(lines), 'HTML'))
     
@@ -61,8 +60,8 @@ def process_combo_format(text):
     """
     /combo format matnni qayta ishlash
     """
-    raqam_pattern = r'֎(\d+)\s*-\s*raqam֎'
-    text_raqam_pattern = r'֎(\d+)\s*-\s*text\s*raqam֎'
+    raqam_pattern = r'\{(\d+)\s*-\s*raqam\}'
+    text_raqam_pattern = r'\{(\d+)\s*-\s*text\s*raqam\}'
     
     has_raqam = bool(re.search(raqam_pattern, text))
     has_text_raqam = bool(re.search(text_raqam_pattern, text))
@@ -74,8 +73,8 @@ def get_combo_format_type(text):
     """
     Combo format turini aniqlash
     """
-    raqam_pattern = r'֎(\d+)\s*-\s*raqam֎'
-    text_raqam_pattern = r'֎(\d+)\s*-\s*text\s*raqam֎'
+    raqam_pattern = r'\{(\d+)\s*-\s*raqam\}'
+    text_raqam_pattern = r'\{(\d+)\s*-\s*text\s*raqam\}'
     
     if re.search(raqam_pattern, text):
         match = re.search(raqam_pattern, text)
@@ -106,12 +105,12 @@ def cmd_textcopy(message):
     user_states[user_id] = 'textcopy'
     
     help_text = """
-Salom menga text yuboring textingiz Ichida <code>֎0 - raqam - 1֎</code>, <code>֎0 - text - 1֎</code>, <code>֎0 - textenter - 1֎</code> bo'lsa men sizga ularni raqamlab yozib beraman
+Salom menga text yuboring textingiz Ichida <code>{0 - raqam - 1}</code>, <code>{0 - text - 1}</code>, <code>{0 - textenter - 1}</code> bo'lsa men sizga ularni raqamlab yozib beraman
 
 📝 <b>TextCopy buyrug'i uchun qo'llanma:</b>
-1️⃣ <code>֎0 - raqam - 1֎</code> - Alohida xabarlarda raqamlash [<a href="https://t.me/AvtoNomlash/4">BATAFSIL</a>]
-2️⃣ <code>֎0 - text - 1֎</code> - Bitta xabarda yonma-yon [<a href="https://t.me/AvtoNomlash">BATAFSIL</a>]
-3️⃣ <code>֎0 - textenter - 1֎</code> - Yangi qatordan [<a href="https://t.me/AvtoNomlash">BATAFSIL</a>]
+1️⃣ <code>{0 - raqam - 1}</code> - Alohida xabarlarda raqamlash [<a href="https://t.me/AvtoNomlash/4">BATAFSIL</a>]
+2️⃣ <code>{0 - text - 1}</code> - Bitta xabarda yonma-yon [<a href="https://t.me/AvtoNomlash">BATAFSIL</a>]
+3️⃣ <code>{0 - textenter - 1}</code> - Yangi qatordan [<a href="https://t.me/AvtoNomlash">BATAFSIL</a>]
 
 ✍️ <b>Endi kerakli formatda matn yuboring!</b>
 """
@@ -124,10 +123,10 @@ def cmd_combo(message):
     user_states[user_id] = 'combo_format'
     
     help_text = """
-    Salom menga <code>֎1 - raqam֎</code>, <code>֎1 - text raqam֎</code> buyruqlardan foydalanib menga habar yuboring men ularni sizning habaringizga qoshib beraman
+    Salom menga <code>{1 - raqam}</code>, <code>{1 - text raqam}</code> buyruqlardan foydalanib menga habar yuboring men ularni sizning habaringizga qoshib beraman
 
-֎1 - raqam֎ - [<a href="https://t.me/AvtoNomlash">BATAFSIL</a>]
-֎1 - text raqam֎ - [<a href="https://t.me/AvtoNomlash">BATAFSIL</a>]
+{1 - raqam} - [<a href="https://t.me/AvtoNomlash">BATAFSIL</a>]
+{1 - text raqam} - [<a href="https://t.me/AvtoNomlash">BATAFSIL</a>]
     
         ✍️ <b>Yaxshi endi habaringizni yuboring:</b>
     """
@@ -239,11 +238,11 @@ def handle_text_messages(message):
         else:
             bot.reply_to(
                 message, 
-                "❌ Format xato! Iltimos, ֎1 - raqam֎ yoki ֎1 - text raqam֎ formatidan foydalaning.\n\n"
+                "❌ Format xato! Iltimos, {1 - raqam} yoki {1 - text raqam} formatidan foydalaning.\n\n"
                 "Masalan:\n"
-                "<b>Video <code>֎1 - raqam֎</code></b> - bilan \n"
+                "<b>Video <code>{1 - raqam}</code></b> - bilan \n"
                 "<b>Yoki</b>\n"
-                "Video <code>֎1 - text raqam֎</code> - qoshilgan holda habar yuboring",
+                "Video <code>{1 - text raqam}</code> - qoshilgan holda habar yuboring",
                 parse_mode='HTML'
             )
     
@@ -285,22 +284,34 @@ def handle_files(message):
         bot.reply_to(message, "Iltimos, avval /combo buyrug'ini yuboring.")
 
 
+@app.route('/webhook', methods=['POST'])
+def webhook():
+    if request.headers.get('content-type') == 'application/json':
+        json_string = request.get_data().decode('utf-8')
+        update = telebot.types.Update.de_json(json_string)
+        bot.process_new_updates([update])
+        return 'OK', 200
+    return 'Bad Request', 403
+
+
 @app.route('/')
 def index():
     return "Bot is running 24/7!"
 
 
-def run_bot():
-    """Botni polling bilan ishga tushirish"""
-    print("Bot ishga tushmoqda...")
-    bot.remove_webhook()
-    bot.infinity_polling(timeout=10, long_polling_timeout=5)
-
-
 if __name__ == '__main__':
-    bot_thread = threading.Thread(target=run_bot)
-    bot_thread.daemon = True
-    bot_thread.start()
+    # Webhook o'rnatish
+    bot.remove_webhook()
+    time.sleep(1)
+    
+    # Render.com avtomatik URL ni oladi
+    render_url = os.getenv("RENDER_EXTERNAL_URL", "")
+    if render_url:
+        webhook_url = f"{render_url}/webhook"
+        bot.set_webhook(url=webhook_url)
+        print(f"Webhook o'rnatildi: {webhook_url}")
+    else:
+        print("RENDER_EXTERNAL_URL topilmadi!")
     
     port = int(os.getenv("PORT", 10000))
     app.run(host='0.0.0.0', port=port)
