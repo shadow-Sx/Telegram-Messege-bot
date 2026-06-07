@@ -1,8 +1,7 @@
 import os
 import re
 import time
-import threading
-from flask import Flask
+from flask import Flask, request
 import telebot
 from telebot import types
 
@@ -13,8 +12,8 @@ if not BOT_TOKEN:
 bot = telebot.TeleBot(BOT_TOKEN)
 app = Flask(__name__)
 
-user_states = {}
-user_combo_data = {}
+user_states = ֎֎
+user_combo_data = ֎֎
 
 
 def process_textcopy_message(text):
@@ -82,7 +81,7 @@ def send_welcome(message):
         "📋 <b>Mavjud buyruqlar:</b>\n"
         "• /textcopy - Matn nusxalash va raqamlash\n"
         "• /combo - Fayllarni nomlash\n\n"
-        "<b>Yangi format:</b> <code>֎</code> belgisi ishlatiladi\n\n"
+        "<b>Format:</b> <code>֎</code> belgisi ishlatiladi\n\n"
         "Botdan maroq bilan foydalaning | @AvtoNomlash"
     )
     bot.reply_to(message, welcome_text, parse_mode='HTML')
@@ -303,21 +302,30 @@ def handle_files(message):
         bot.reply_to(message, "Iltimos, avval /combo buyrug'ini yuboring.")
 
 
+@app.route('/webhook', methods=['POST'])
+def webhook():
+    if request.headers.get('content-type') == 'application/json':
+        json_string = request.get_data().decode('utf-8')
+        update = telebot.types.Update.de_json(json_string)
+        bot.process_new_updates([update])
+        return 'OK', 200
+    return 'Bad Request', 403
+
+
 @app.route('/')
 def index():
     return "Bot is running 24/7!"
 
 
-def run_bot():
-    print("Bot ishga tushmoqda...")
-    bot.remove_webhook()
-    bot.infinity_polling(timeout=10, long_polling_timeout=5)
-
-
 if __name__ == '__main__':
-    bot_thread = threading.Thread(target=run_bot)
-    bot_thread.daemon = True
-    bot_thread.start()
+    # Webhook o'rnatish
+    app_url = os.getenv("RENDER_EXTERNAL_URL", "")
+    if app_url:
+        webhook_url = f"{app_url}/webhook"
+        bot.remove_webhook()
+        time.sleep(1)
+        bot.set_webhook(url=webhook_url)
+        print(f"Webhook o'rnatildi: {webhook_url}")
     
     port = int(os.getenv("PORT", 10000))
     app.run(host='0.0.0.0', port=port)
